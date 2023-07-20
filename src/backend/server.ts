@@ -31,7 +31,7 @@ async function getChatGPTResponse(inputText) {
         "content": inputText
       }
     ],
-    temperature: 0,
+    temperature: 0.6,
     max_tokens: 1024,
   });
 }
