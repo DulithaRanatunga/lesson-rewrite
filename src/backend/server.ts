@@ -19,7 +19,11 @@ const SUCCESS_PROMPT = "If you can do this, please start your response with " + 
 const FAILIURE_PROMPT = "If you are unable to do so, please start your response with " + FAIL_PREFIX;
 
 function getAsk(grade){
-  return ASK.replace("{}", "seventh");
+  return ASK.replace("{}", grade || "seventh");
+}
+
+function getMaxWords(text) {
+  return Math.round(text.split(" ").length * 2); // We don't want the output to be hugely disproportinate to the input, but doing something like 1.05% seemed to get cut off.
 }
 
 async function getChatGPTResponse(inputText, grade) {  
@@ -37,12 +41,12 @@ async function getChatGPTResponse(inputText, grade) {
         }
       ],
       temperature: 0.6,
-      max_tokens: 1024,
+      max_tokens: getMaxWords(inputText),
     });
     const data = await openAiResponse.data;
     const text = data.choices[0].message.content;
     if (text.indexOf(SUCCESS_PREFIX) !== -1) {
-      return text.trim().substring(SUCCESS_PREFIX.length);
+      return text.substring(SUCCESS_PREFIX.length).trim();
     } else if (text.indexOf(FAIL_PREFIX) !== -1) {
       console.log("OpenAI couldn't answer this validly");
     } else {
