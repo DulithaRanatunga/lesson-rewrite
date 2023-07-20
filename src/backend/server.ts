@@ -3,9 +3,40 @@ import * as express from "express";
 import * as cors from "cors";
 import { createBaseServer } from "../../utils/backend/base_backend/create";
 import { createJwtMiddleware } from "../../utils/backend/jwt_middleware";
+const { Configuration, OpenAIApi } = require("openai");
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+// RADR Model:
+const ROLE = "Imagine you are a high school teacher preparing to give a lesson on a particular subject.";
+const ASK = "I will provide you with some text content and I would like you to rewrite the content you are provided with in language that is appropriate for a seventh grade student.";
+const SUCCESS_PREFIX =  "_yessir:";
+const FAIL_PREFIX = "_sorry, I cannae do that capn!"
+const SUCCESS_PROMPT = "If you can do this, please start your response with " + SUCCESS_PREFIX;
+const FAILIURE_PROMPT = "If you are unable to do so, please start your response with " + FAIL_PREFIX;
+
+async function getChatGPTResponse(inputText) {
+  return await openai.createChatCompletion({
+    model: "gpt-dv-canva",
+    messages: [
+      {
+        "role": "system",
+        "content": ROLE + ASK + SUCCESS_PROMPT + FAILIURE_PROMPT
+      },
+      {
+        "role": "user",
+        "content": inputText
+      }
+    ],
+    temperature: 0,
+    max_tokens: 1024,
+  });
+}
 
 async function main() {
-  // TODO: Set the CANVA_APP_ID environment variable in the project's .env file
   const APP_ID = process.env.CANVA_APP_ID;
 
   if (!APP_ID) {
@@ -54,9 +85,19 @@ async function main() {
    */
   router.post("/transform", async (req, res) => {
     console.log("request", req.body);
-    res.status(200).send({
-      text: "Transformed from BE:" + req.body.text
-    });
+    try {
+      const gptd = await getChatGPTResponse(req.body.text);
+      const response =  {
+        text: gptd.data.choices[0].message.content
+      };
+      console.log("response", response)
+      res.status(200).send(response);
+    } catch (error) {
+      console.log("GPT Request failed");
+      res.status(500).send({
+        error: "GPT Request Failed"
+      });
+    }
   });
 
   const server = createBaseServer(router);

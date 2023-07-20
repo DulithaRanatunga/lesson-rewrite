@@ -38,6 +38,10 @@ export const App = () => {
           text
         })
       });
+      
+      if (!res.ok) {
+        throw new Error("BE Request Failed");
+      }
 
       const body = await res.json();
       setState("success");
@@ -89,10 +93,10 @@ export const App = () => {
         <Text>
           Select some content, then hit the button.
         </Text>
-        <Button variant="primary" onClick={handleReplace} disabled={!isElementSelected} loading={state === "loading"} stretch>
+        <Button variant="primary" onClick={handleReplace} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
           Replace
         </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={!isElementSelected} loading={state === "loading"} stretch>
+        <Button variant="primary" onClick={handleAdd} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
           Add new
         </Button>
         {state === "success" && (
