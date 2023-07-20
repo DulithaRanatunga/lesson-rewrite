@@ -4,13 +4,16 @@ import * as React from "react";
 import styles from "styles/components.css";
 import { auth } from "@canva/user";
 import { SelectionEvent, selection } from "@canva/preview/design";
+import { warn } from "console";
 
 const BACKEND_URL = `${BACKEND_HOST}/transform`;
+const MIN_INPUT_SIZE = 5;
 
 type State = "idle" | "loading" | "success" | "error";
 
 export const App = () => {
   const [state, setState] = React.useState<State>("idle");
+  const [warnMessage, setWarnMessage] = React.useState<String>();
   const [event, setEvent] = React.useState<SelectionEvent<"text"> | undefined>();
 
   React.useEffect(() => {
@@ -54,16 +57,24 @@ export const App = () => {
 
 
   async function handleReplace() {
+    reset();
     executeOnEachSelectedElement(async (value) => {
-      // Send the text to the backend
-      // Wait for response
-      // Transform to response
-      const response = await callTransformApi(value.text);
+      const textContent = value.text;
+      if (textContent.split(" ").length < MIN_INPUT_SIZE) {
+        setWarnMessage("Some selected items were too short to be rewritten.");
+        return { text: textContent }
+      }
+      const response = await callTransformApi(value.text);      
       return { text: response.text };
     });
   }
 
+  function reset() {
+    setWarnMessage(undefined);
+  }
+
   async function handleAdd() {
+    reset();
     executeOnEachSelectedElement(async (value) => {
       const response = await callTransformApi(value.text);
       await addNativeElement({
@@ -104,6 +115,9 @@ export const App = () => {
         )}
         {state === "error" && (        
           <Text>Something went wrong</Text>
+        )}
+        {warnMessage && (        
+          <Text>{warnMessage}</Text>
         )}
       </Rows>
     </div>

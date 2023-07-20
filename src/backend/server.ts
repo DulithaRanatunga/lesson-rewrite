@@ -12,28 +12,45 @@ const openai = new OpenAIApi(configuration);
 
 // RADR Model:
 const ROLE = "Imagine you are a high school teacher preparing to give a lesson on a particular subject.";
-const ASK = "I will provide you with some text content and I would like you to rewrite the content you are provided with in language that is appropriate for a seventh grade student.";
-const SUCCESS_PREFIX =  "_yessir:";
+const ASK = "I will provide you with some text content and I would like you to rewrite the content you are provided with in language that is appropriate for a {} grade student."
+const SUCCESS_PREFIX = "_yessir:";
 const FAIL_PREFIX = "_sorry, I cannae do that capn!"
 const SUCCESS_PROMPT = "If you can do this, please start your response with " + SUCCESS_PREFIX;
 const FAILIURE_PROMPT = "If you are unable to do so, please start your response with " + FAIL_PREFIX;
 
-async function getChatGPTResponse(inputText) {
-  return await openai.createChatCompletion({
-    model: "gpt-dv-canva",
-    messages: [
-      {
-        "role": "system",
-        "content": ROLE + ASK + SUCCESS_PROMPT + FAILIURE_PROMPT
-      },
-      {
-        "role": "user",
-        "content": inputText
-      }
-    ],
-    temperature: 0.6,
-    max_tokens: 1024,
-  });
+function getAsk(grade){
+  return ASK.replace("{}", "seventh");
+}
+
+async function getChatGPTResponse(inputText, grade) {  
+  try {
+    const openAiResponse = await openai.createChatCompletion({
+      model: "gpt-dv-canva",
+      messages: [
+        {
+          "role": "system",
+          "content": ROLE + getAsk(grade) + SUCCESS_PROMPT + FAILIURE_PROMPT
+        },
+        {
+          "role": "user",
+          "content": inputText
+        }
+      ],
+      temperature: 0.6,
+      max_tokens: 1024,
+    });
+    const data = await openAiResponse.data;
+    const text = data.choices[0].message.content;
+    if (text.indexOf(SUCCESS_PREFIX) !== -1) {
+      return text.trim().substring(SUCCESS_PREFIX.length);
+    } else if (text.indexOf(FAIL_PREFIX) !== -1) {
+      console.log("OpenAI couldn't answer this validly");
+    } else {
+      console.log("Unexpected response");
+    }
+  } catch (error) {
+    console.log("GPT Request Failed");
+  }
 }
 
 async function main() {
@@ -80,19 +97,16 @@ async function main() {
   const jwtMiddleware = createJwtMiddleware(APP_ID);
   router.use(jwtMiddleware);
 
-  /*
-   * TODO: Define your backend routes after initializing the jwt middleware.
-   */
   router.post("/transform", async (req, res) => {
     console.log("request", req.body);
-    try {
-      const gptd = await getChatGPTResponse(req.body.text);
-      const response =  {
-        text: gptd.data.choices[0].message.content
+    const newContent = await getChatGPTResponse(req.body.text.trim(), req.body.grade);
+    if (newContent) {
+      const response = {
+        text: newContent
       };
       console.log("response", response)
       res.status(200).send(response);
-    } catch (error) {
+    } else {
       console.log("GPT Request failed");
       res.status(500).send({
         error: "GPT Request Failed"

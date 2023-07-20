@@ -12,8 +12,6 @@ To get an API key, follow the handbook guide: https://docs.canva.tech/machine-le
 
 
 ## Todo:
-- Error handling for when GPT can't do a task
-- Minimum inputsize
 - Make the number of tokens similar to input size
 - Make the temperature UI tweakable (just for testing)
 - Add to a new page
