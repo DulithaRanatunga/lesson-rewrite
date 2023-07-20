@@ -12,8 +12,12 @@ To get an API key, follow the handbook guide: https://docs.canva.tech/machine-le
 
 
 ## Todo:
-- Make the number of tokens similar to input size
-- Make the temperature UI tweakable (just for testing)
-- Add to a new page
-- Make the new content not break the page.
-- Replace images
+1. Options of edu standards: NSW Education, American Common Core Curriculum, Montessori, 
+2. Add to prompt
+3. Reset to original text / - Retry button (keep track of the first attempt)/  Try again 
+4. Resubmit to make it more consise
+5. Automatic resizing / - Make the new content not break the page.
+6. Support shapes
+7. Replace images
+8. What changed?
+

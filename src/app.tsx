@@ -14,6 +14,7 @@ type State = "idle" | "loading" | "success" | "error";
 export const App = () => {
   const [state, setState] = React.useState<State>("idle");
   const [grade, setGrade] = React.useState<String>("seventh");
+  const [curriculum, setCurriculum] = React.useState<String>("NSW Education");
   const [warnMessage, setWarnMessage] = React.useState<String>();
   const [event, setEvent] = React.useState<SelectionEvent<"text"> | undefined>();
 
@@ -41,9 +42,10 @@ export const App = () => {
         body: JSON.stringify({
           text: text,
           grade: grade,
+          curriculum: curriculum,
         })
       });
-      
+
       if (!res.ok) {
         throw new Error("BE Request Failed");
       }
@@ -66,7 +68,7 @@ export const App = () => {
         setWarnMessage("Some selected items were too short to be rewritten. These have been skipped.");
         return { text: textContent }
       }
-      const response = await callTransformApi(value.text);      
+      const response = await callTransformApi(value.text);
       return { text: response.text };
     });
   }
@@ -96,7 +98,7 @@ export const App = () => {
 
     await selection.setContent(event, async (value) => {
       // Ignore selections which don't have text.
-      return !!value.text ? functionToExecute(value): value;
+      return !!value.text ? functionToExecute(value) : value;
     });
   }
 
@@ -104,43 +106,44 @@ export const App = () => {
     <div className={styles.scrollContainer}>
       <Rows spacing="2u">
         <Text>
-          This app will take content that you select and use AI technology to rewrite it at an age appropriate for your selected grade.
-          To get started, select any items on your page and then press the replace button!
+          To personalise learning for students, select elements along with the grade and curriculum standards that you want to change.
         </Text>
-        <FormField
-          label="Grade"
-          description="The content you select will be re-written for this age."
-          control={(props) => (
-            <Select
-              {...props} // <--- pass props down id, value and error to connect Select component to FormField
-              options={[
-                { value: "fourth", label: "Four" },
-                { value: "fifth", label: "Five" },
-                { value: "sixth", label: "Six" },
-                { value: "seventh", label: "Seven" },
-                { value: "eigth", label: "Eight" },
-                { value: "ninth", label: "Nine" },
-                { value: "tenth", label: "Ten" },
-              ]}   
-              value={grade}
-              onChange={(event) => setGrade(event)}           
-              stretch
-            />
-          )}
+        <Select
+          options={[
+            { value: "fourth", label: "Grade 4" },
+            { value: "fifth", label: "Grade 5" },
+            { value: "sixth", label: "Grade 6" },
+            { value: "seventh", label: "Grade 7" },
+            { value: "eigth", label: "Grade 8" },
+            { value: "ninth", label: "Grade 9" }
+          ]}
+          value={grade}
+          onChange={(event) => setGrade(event)}
+          stretch
+        />
+        <Select
+          options={[
+            { value: "NSW Education", label: "NSW Education" },
+            { value: "Montessori", label: "Montessori" },
+            { value: "American Common Core", label: "American Common Core" },
+          ]}
+          value={curriculum}
+          onChange={(event) => setCurriculum(event)}
+          stretch
         />
         <Button variant="primary" onClick={handleReplace} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
           Replace
         </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
+        {/* <Button variant="primary" onClick={handleAdd} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
           Add new
-        </Button>
-        {state === "success" && (
+        </Button> */}
+        {/* {state === "success" && (
           <Text>Success!</Text>
-        )}
-        {state === "error" && (        
+        )} */}
+        {state === "error" && (
           <Text tone="critical">Something went wrong</Text>
         )}
-        {warnMessage && (        
+        {warnMessage && (
           <Text tone="critical">{warnMessage}</Text>
         )}
       </Rows>
