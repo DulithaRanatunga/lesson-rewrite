@@ -1,12 +1,10 @@
-import { Button, Rows, Text, Select, MultilineInput, Box, Column, Columns } from "@canva/app-ui-kit";
-import { addNativeElement } from "@canva/design";
+import { Button, Rows, Text, Select, MultilineInput, Box } from "@canva/app-ui-kit";
 import * as React from "react";
 import styles from "styles/components.css";
 import { auth } from "@canva/user";
 import { SelectionEvent, selection } from "@canva/preview/design";
 import PlusIcon from "assets/icons/plus.svg";
 import RefreshIcon from "assets/icons/refresh.svg"
-import { warn } from "console";
 
 const BACKEND_URL = `${BACKEND_HOST}/transform`;
 const MIN_INPUT_SIZE = 5;
@@ -14,22 +12,22 @@ const MIN_INPUT_SIZE = 5;
 type State = "idle" | "loading" | "success" | "error";
 
 export const App = () => {
-  const [lastExecuted, setLastExecuted] = React.useState<SelectionEvent<"text"> | undefined>();
-  const [selectedChanged, setSelectedChanged] = React.useState<Boolean>();
+  // New message -> Original Message
+  const [conversionsMap, setConversionsMap] = React.useState<any>({});
+  const [selectionIncludesChangedItems, setSelectionIncludesChangedItems] = React.useState<Boolean>();
   const [state, setState] = React.useState<State>("idle");
-  const [grade, setGrade] = React.useState<String>("seventh");
-  const [curriculum, setCurriculum] = React.useState<String>("NSW Education");
-  const [warnMessage, setWarnMessage] = React.useState<String>();
+  const [extraPrompt, setExtraPrompt] = React.useState<string>();
+  const [grade, setGrade] = React.useState<string>("seventh");
+  const [curriculum, setCurriculum] = React.useState<string>("NSW Education");
+  const [warnMessage, setWarnMessage] = React.useState<string>();
   const [event, setEvent] = React.useState<SelectionEvent<"text"> | undefined>();
 
   React.useEffect(() => {
     selection.registerOnChange({
       scope: "text",
       onChange: (event) => {
-        console.log("FIRED", event)
-        setSelectedChanged(event != lastExecuted);
-        setEvent(event);
-      },
+        setEvent(event)
+      }
     });
   }, []);
 
@@ -49,6 +47,7 @@ export const App = () => {
           text: text,
           grade: grade,
           curriculum: curriculum,
+          extraPrompt: extraPrompt
         })
       });
 
@@ -65,18 +64,42 @@ export const App = () => {
     }
   };
 
+  // From https://stackoverflow.com/a/52171480
+  const cyrb53 = (str, seed = 0) => {
+      let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+      for(let i = 0, ch; i < str.length; i++) {
+          ch = str.charCodeAt(i);
+          h1 = Math.imul(h1 ^ ch, 2654435761);
+          h2 = Math.imul(h2 ^ ch, 1597334677);
+      }
+      h1  = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+      h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+      h2  = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+      h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    
+      return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  };
+
 
   async function handleReplace() {
     reset();
     executeOnEachSelectedElement(async (value) => {
-      const textContent = value.text;
-      if (textContent.split(" ").length < MIN_INPUT_SIZE) {
+      console.log(value);
+      const currentText = value.text;
+      if (currentText.split(" ").length < MIN_INPUT_SIZE) {
         setWarnMessage("Some selected items were too short to be rewritten. These have been skipped.");
-        return { text: textContent }
+        return { text: currentText }
       }
-      const response = await callTransformApi(value.text);
+      // If a previous message exists for this one, use the original text.
+      console.log(conversionsMap)
+      var originalText = conversionsMap[cyrb53(currentText)] || currentText;
+      const response = await callTransformApi(originalText);
+
+      // Store converted messages. 
+      conversionsMap[cyrb53(response.text)]=originalText;
       return { text: response.text };
     });
+    setSelectionIncludesChangedItems(true);
   }
 
   function reset() {
@@ -87,8 +110,6 @@ export const App = () => {
     if (!event || !isElementSelected) {
       return;
     }
-    setLastExecuted(event);
-    setSelectedChanged(false);
     await selection.setContent(event, async (value) => {
       // Ignore selections which don't have text.
       return !!value.text ? functionToExecute(value) : value;
@@ -96,15 +117,45 @@ export const App = () => {
   }
 
   function buttonContent() {
-    if (state === "idle" || selectedChanged) {
+    if (state === "idle" || !selectionIncludesChangedItems) {
       return "Change your content"
-    } else if (!selectedChanged) {
+    } else if (selectionIncludesChangedItems) {
       return <span className={styles.refreshIconSpan}><RefreshIcon/> Try again</span>
     } 
     return undefined;
   }
 
-  function resetSelection() {}
+  function addPromptExample() {
+    setExtraPrompt("Provide examples in Spanish and English")
+  }
+
+  function resetSelection() {
+    executeOnEachSelectedElement(async (value) => {
+      const currentText = value.text;
+      var originalText = conversionsMap[cyrb53(currentText)]
+      return { text: originalText || currentText}
+    })
+    setSelectionIncludesChangedItems(false)
+  }
+
+  function handleSelectionEvent() {
+    setSelectionIncludesChangedItems(false);
+    // If any of the currently selected values have been converted before
+    // then show the tryAgain and reset prompt
+    executeOnEachSelectedElement(async (value) => {
+      // But check hashes.
+      if (!!conversionsMap[cyrb53(value.text)]) {
+        setSelectionIncludesChangedItems(true);
+      }
+
+      // Don't change anything
+      return value;
+    })
+  }
+
+  React.useEffect(() => {
+    handleSelectionEvent()
+  }, [event])
 
   return (
     <div className={styles.scrollContainer}>
@@ -144,12 +195,13 @@ export const App = () => {
             <div className={styles.removeBorder}>
           <MultilineInput
             autoGrow
-            onChange={() => {}}
+            value={extraPrompt}
+            onChange={(value) => setExtraPrompt(value)}
             placeholder="(Optional) Add more details about the student(s)"
           />
           </div>         
           <div className={styles.plusButton}>
-          <Button variant="secondary" stretch>
+          <Button variant="secondary" stretch onClick={addPromptExample} disabled={extraPrompt?.length > 0}>
             Try an example
             <PlusIcon /> 
           </Button>
@@ -158,7 +210,7 @@ export const App = () => {
         <Button variant="primary" onClick={handleReplace} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
           {buttonContent()}
         </Button>
-        { state === "success" && !selectedChanged && <Button variant="secondary" onClick={resetSelection} stretch>
+        { state === "success" && selectionIncludesChangedItems && <Button variant="secondary" onClick={resetSelection} stretch>
           Reset to original text
         </Button>}        
         {state === "error" && (

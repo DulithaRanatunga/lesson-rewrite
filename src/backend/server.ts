@@ -11,17 +11,17 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 // RADR Model:
-const ROLE = "Imagine you are a high school teacher preparing to give a lesson on a particular subject. ";
-const ASK = "I will provide you with some text content and I would like you to rewrite the content you are provided with in language that is appropriate for a {} grade student. "
-const CURRICULUM = "The new content should be adapted to {} standards. "
-const CONTENT_LENGTH = "If possible, try to make your response shorter than the input prompt. "
+const ROLE = "Imagine you are a high school teacher preparing to give a lesson on a particular subject";
+const ASK = ". I will provide you with some text content and I would like you to rewrite the content you are provided with in language that is appropriate for a {} grade student "
+const CURRICULUM = ". The new content should be adapted to {} standards "
+const CONTENT_LENGTH = ". If possible, try to make your response shorter than the input prompt."
 const SUCCESS_PREFIX = "_yessir:";
 const FAIL_PREFIX = "_sorry, I cannae do that capn!"
-const SUCCESS_PROMPT = " If you can do this, please start your response with " + SUCCESS_PREFIX;
-const FAILIURE_PROMPT = " If you are unable to do so, please start your response with " + FAIL_PREFIX;
+const SUCCESS_PROMPT = ". If you can do this, please start your response with " + SUCCESS_PREFIX;
+const FAILIURE_PROMPT = ". If you are unable to do so, please start your response with " + FAIL_PREFIX;
 
-function getAsk(grade, curriculum){
-  var ask = ASK.replace("{}", grade || "seventh") + CURRICULUM.replace("{}", curriculum || "NSW Education") + CONTENT_LENGTH;
+function getAsk(grade, curriculum, extraPrompt){
+  var ask = ROLE + ASK.replace("{}", grade || "seventh") + CURRICULUM.replace("{}", curriculum || "NSW Education") + CONTENT_LENGTH + extraPrompt + SUCCESS_PROMPT + FAILIURE_PROMPT;
   console.log(ask);
   return ask;
 }
@@ -31,14 +31,14 @@ function getMaxWords(text) {
   // return Math.round(text.split(" ").length * 2); // We don't want the output to be hugely disproportinate to the input, but doing something like 1.05% seemed to get cut off.
 }
 
-async function getChatGPTResponse(inputText, grade, curriculum) {  
+async function getChatGPTResponse(inputText, grade, curriculum, extraPrompt) {  
   try {
     const openAiResponse = await openai.createChatCompletion({
       model: "gpt-dv-canva",
       messages: [
         {
           "role": "system",
-          "content": ROLE + getAsk(grade, curriculum) + SUCCESS_PROMPT + FAILIURE_PROMPT
+          "content": getAsk(grade, curriculum, extraPrompt)
         },
         {
           "role": "user",
@@ -108,7 +108,7 @@ async function main() {
 
   router.post("/transform", async (req, res) => {
     console.log("request", req.body);
-    const newContent = await getChatGPTResponse(req.body.text.trim(), req.body.grade, req.body.curriculum);
+    const newContent = await getChatGPTResponse(req.body.text.trim(), req.body.grade, req.body.curriculum, req.body.extraPrompt);
     if (newContent) {
       const response = {
         text: newContent
