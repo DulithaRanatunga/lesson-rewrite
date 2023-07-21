@@ -1,9 +1,11 @@
-import { Button, Rows, Text, FormField, Select } from "@canva/app-ui-kit";
+import { Button, Rows, Text, Select, MultilineInput, Box, Column, Columns } from "@canva/app-ui-kit";
 import { addNativeElement } from "@canva/design";
 import * as React from "react";
 import styles from "styles/components.css";
 import { auth } from "@canva/user";
 import { SelectionEvent, selection } from "@canva/preview/design";
+import PlusIcon from "assets/icons/plus.svg";
+import RefreshIcon from "assets/icons/refresh.svg"
 import { warn } from "console";
 
 const BACKEND_URL = `${BACKEND_HOST}/transform`;
@@ -12,6 +14,8 @@ const MIN_INPUT_SIZE = 5;
 type State = "idle" | "loading" | "success" | "error";
 
 export const App = () => {
+  const [lastExecuted, setLastExecuted] = React.useState<SelectionEvent<"text"> | undefined>();
+  const [selectedChanged, setSelectedChanged] = React.useState<Boolean>();
   const [state, setState] = React.useState<State>("idle");
   const [grade, setGrade] = React.useState<String>("seventh");
   const [curriculum, setCurriculum] = React.useState<String>("NSW Education");
@@ -22,6 +26,8 @@ export const App = () => {
     selection.registerOnChange({
       scope: "text",
       onChange: (event) => {
+        console.log("FIRED", event)
+        setSelectedChanged(event != lastExecuted);
         setEvent(event);
       },
     });
@@ -77,30 +83,28 @@ export const App = () => {
     setWarnMessage(undefined);
   }
 
-  async function handleAdd() {
-    reset();
-    executeOnEachSelectedElement(async (value) => {
-      const response = await callTransformApi(value.text);
-      await addNativeElement({
-        type: "TEXT",
-        children: [response.text],
-        color: "#ff0099",
-        fontWeight: "bold"
-      });
-      return value;
-    })
-  }
-
   async function executeOnEachSelectedElement(functionToExecute) {
     if (!event || !isElementSelected) {
       return;
     }
-
+    setLastExecuted(event);
+    setSelectedChanged(false);
     await selection.setContent(event, async (value) => {
       // Ignore selections which don't have text.
       return !!value.text ? functionToExecute(value) : value;
     });
   }
+
+  function buttonContent() {
+    if (state === "idle" || selectedChanged) {
+      return "Change your content"
+    } else if (!selectedChanged) {
+      return <span className={styles.refreshIconSpan}><RefreshIcon/> Try again</span>
+    } 
+    return undefined;
+  }
+
+  function resetSelection() {}
 
   return (
     <div className={styles.scrollContainer}>
@@ -131,15 +135,32 @@ export const App = () => {
           onChange={(event) => setCurriculum(event)}
           stretch
         />
+        <Box
+          border="low"
+          borderRadius="standard"
+          background="contrast"
+          padding="1u"
+          >
+            <div className={styles.removeBorder}>
+          <MultilineInput
+            autoGrow
+            onChange={() => {}}
+            placeholder="(Optional) Add more details about the student(s)"
+          />
+          </div>         
+          <div className={styles.plusButton}>
+          <Button variant="secondary" stretch>
+            Try an example
+            <PlusIcon /> 
+          </Button>
+          </div>
+        </Box>
         <Button variant="primary" onClick={handleReplace} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
-          Replace
+          {buttonContent()}
         </Button>
-        {/* <Button variant="primary" onClick={handleAdd} disabled={!isElementSelected || state === "loading"} loading={state === "loading"} stretch>
-          Add new
-        </Button> */}
-        {/* {state === "success" && (
-          <Text>Success!</Text>
-        )} */}
+        { state === "success" && !selectedChanged && <Button variant="secondary" onClick={resetSelection} stretch>
+          Reset to original text
+        </Button>}        
         {state === "error" && (
           <Text tone="critical">Something went wrong</Text>
         )}

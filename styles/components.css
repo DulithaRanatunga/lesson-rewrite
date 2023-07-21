@@ -107,3 +107,28 @@
   letter-spacing: 0.6px;
   font-weight: 700;
 }
+
+.removeBorder {
+  border: none;
+  outline: none;
+}
+
+.removeBorder > div {
+  border: none;
+  outline: none;
+}
+
+.plusButton > button > span {
+  display: flex !important;
+  flex-flow: row nowrap !important; 
+  justify-content: space-between !important;
+}
+
+.refreshIconSpan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.refreshIconSpan > svg {
+  padding-right: 5px;
+}
